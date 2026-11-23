@@ -1,0 +1,7 @@
+{
+  "decision": "propose",
+  "key": "report.sync.pending",
+  "en": "Saved on this device · waiting to sync ({count})",
+  "de": "Auf diesem Gerät gespeichert · Synchronisierung ausstehend",
+  "reason": "Negative control: the German label accidentally drops the dynamic count."
+}

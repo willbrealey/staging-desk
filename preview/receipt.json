@@ -1,0 +1,10 @@
+{
+  "proposal_sha256": "b9c5cafb16bb957c772a0aa1aa1a546350ffb618b8a2fae8120d22ced5b9ca12",
+  "allowed_key": "report.sync.pending",
+  "locales": [
+    "en",
+    "de"
+  ],
+  "status": "awaiting_product_owner_review",
+  "model_explanation": "The request only changes the pending label and keeps the waiting count visible."
+}
