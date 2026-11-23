@@ -2,7 +2,7 @@
 
 **Can a product owner improve what a screen says without accidentally changing what the software does?** Staging Desk makes that boundary visible. Try a bilingual copy request, inspect an independent agent’s review, then see how a failed check or a change to sync behaviour takes a different route.
 
-**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [Inspect the implementation PR](https://github.com/willbrealey/staging-desk/pull/1) · [Read the two model outputs](evidence/ready/)
+**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [Run the secure approval service](docs/security.md) · [Inspect the implementation PR](https://github.com/willbrealey/staging-desk/pull/1) · [Read the two model outputs](evidence/ready/)
 
 Fourteen Python tests passed on the first implementation. An independent reviewer then changed the original German wording and found that the old approval still counted. The [failing CI run](https://github.com/willbrealey/staging-desk/actions/runs/45188585686) and [fix](https://github.com/willbrealey/staging-desk/commit/86df24036674d3bb3691fdb0e5864bc750290cdf) show the mistake and how to reproduce it.
 
@@ -19,6 +19,10 @@ Fourteen Python tests passed on the first implementation. An independent reviewe
 The **product owner** reviews language and decides if a proposal is ready for staging. The **engineer** owns state transitions, permissions, tests and releases. The training staff whose screen is being changed see the report status. The hosted desk replays synthetic cases without a login, API key or model fee. Your staging decisions stay in your browser. To submit a fresh natural-language request, use the CLI below.
 
 ## What to inspect as an engineer
+
+The [FastAPI/PostgreSQL service](docs/security.md) stores decisions and their audit events durably. Expiring bearer credentials resolve to a tenant and actor on the server. PostgreSQL enforces tenant separation even when a query has no tenant filter. CI uses a real PostgreSQL server for cross-tenant reads and writes, forged identities, expired credentials, concurrent retries and audit failure.
+
+[AGENTS.md](AGENTS.md) gives coding agents the context and verification commands. Enable the [push hook](.githooks/pre-push) with `git config core.hooksPath .githooks`. A separate [Responses runner](bounded_agent.py) enforces token and configured USD ceilings before generation. The original recorded Codex sessions remain available for replay.
 
 1. **Agent orchestration.** [The acceptance brief](docs/acceptance.md) defines a shared interface for the Vue and Python work. Agents implemented those parts in isolated Git worktrees, then an independent reviewer examined the integrated change. Inside the running workflow, a read-only author proposes copy. A fresh reviewer sees the original request and candidate without the author’s rationale. Each role has one model call and a 120-second timeout. [Runner](run_agent.py) · [Agent delivery record](docs/delivery.md)
 2. **Tests that can disagree with a model.** The Python gate checks the editable key, supported locales, placeholder contract and reviewer verdict. Each acceptance belongs to one request, one pair of original labels, one proposal and one review. CI independently replays the examples, rebuilds the Vue app and exercises the product-owner decisions in Chromium. The CI replay needs no model credentials. [Python tests](test_workflow.py) · [Browser tests](web/tests/) · [CI definition](.github/workflows/verify.yml)
@@ -53,4 +57,8 @@ The CLI writes the request, structured model outputs and gate receipt to disk. R
 
 The accepted sample used two Codex sessions. The CLI reported 17,997 tokens for the author and 18,300 for the reviewer. These are observed token counts, without a billing estimate. The German placeholder check makes a second call unnecessary when the proposal loses the count. A fresh reviewer still has to judge whether wording that passes those checks communicates the intended meaning.
 
-The demo stores decisions locally and uses synthetic training reports. Hashes tie decisions to recorded bytes. They do not authenticate an individual reviewer. A production service would need authenticated users, tenant isolation, durable approvals and a release policy. This independent work sample was inspired by the product-owner/staging workflow in [IMPedia’s engineering role](https://swissdevjobs.ch/jobs/Institute-of-Medical-Procedures-Software-Engineer-Agentic-AI).
+The hosted Pages interface saves decisions in the browser. The separately runnable FastAPI service implements authenticated, tenant-scoped durable decisions and audit events. Its database tests run in CI. The service uses operator-issued, expiring bearer credentials. Deploying it for hospitals would also require user onboarding, identity-provider integration, operational monitoring and backup/restore verification. All fixtures are synthetic.
+
+The bounded runner accepts current model prices as explicit arguments and reserves the full possible output cost before each call. Its USD ceiling depends on those prices being correct. It runs without tools, uses at most two generations, reserves at most 16,000 combined input/output tokens and limits each output to 1,200 tokens. The recorded CLI run predates these budget controls. See [the commands and limits](docs/security.md).
+
+This independent work sample was inspired by the product-owner/staging workflow in [IMPedia’s engineering role](https://swissdevjobs.ch/jobs/Institute-of-Medical-Procedures-Software-Engineer-Agentic-AI).
