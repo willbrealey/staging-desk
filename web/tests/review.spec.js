@@ -63,3 +63,16 @@ test('phone layout exposes each workflow without horizontal overflow', async ({ 
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
 })
+
+test('keyboard skip link focuses the same case without rewriting its route', async ({ page }) => {
+  for (const id of ['blocked', 'escalated']) {
+    await page.goto('./#' + id)
+    const selectedCase = caseButton(page, id)
+    await expect(selectedCase).toHaveAttribute('aria-current', 'true')
+    await page.getByRole('link', { name: 'Skip to selected request' }).focus()
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(new RegExp('#' + id + '$'))
+    await expect(selectedCase).toHaveAttribute('aria-current', 'true')
+    await expect(page.locator('article#review')).toBeFocused()
+  }
+})
