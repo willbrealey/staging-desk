@@ -5,9 +5,10 @@ from pathlib import Path
 from subprocess import run as cli
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from run_agent import run
-from workflow import ROOT, assess, bytes_from, catalog, digest, replay
+from workflow import BEFORE, ROOT, assess, bytes_from, catalog, digest, replay
 
 
 def encode(data):
@@ -83,6 +84,22 @@ class GateTests(unittest.TestCase):
                 assess(REQUEST, raw, review(reason="Independently verified."))["sha256"]}
         self.assertEqual(len(keys), 4)
         self.assertNotIn(None, keys)
+
+    def test_baseline_change_invalidates_recorded_review_for_each_locale(self):
+        original = review()
+        for lang in ("en", "de"):
+            with self.subTest(lang=lang), patch.dict(BEFORE, {lang: "Updated baseline ({count})"}):
+                outcome = assess(REQUEST, encode(PROPOSAL), original)
+                self.assertEqual(outcome["status"], "blocked")
+                self.assertIsNone(outcome["sha256"])
+
+    def test_new_review_of_changed_baseline_has_new_decision_key(self):
+        original = assess(REQUEST, encode(PROPOSAL), review())
+        with patch.dict(BEFORE, {"en": "Saved locally ({count})"}):
+            revised = assess(REQUEST, encode(PROPOSAL), review())
+        self.assertEqual(original["status"], "ready")
+        self.assertEqual(revised["status"], "ready")
+        self.assertNotEqual(original["sha256"], revised["sha256"])
 
     def test_author_escalation_cannot_carry_labels_or_reach_reviewer(self):
         esc = {**PROPOSAL, "decision": "escalate", "en": "", "de": ""}
