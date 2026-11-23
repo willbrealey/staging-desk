@@ -1,0 +1,113 @@
+[
+  {
+    "id": "ready",
+    "title": "Clarify the pending status",
+    "source": "Recorded live Codex author and reviewer",
+    "request": "People read \"Pending\" and ask whether they need to enter the training report again.\nPlease make the pending status say the report is saved on this device and waiting\nto sync. Show the number waiting. The same change should appear in English and\nGerman. Leave the sent status and the upload behaviour as they are.",
+    "status": "ready",
+    "reason": "Verified for product-owner review.",
+    "before": {
+      "en": "Pending ({count})",
+      "de": "Ausstehend ({count})"
+    },
+    "after": {
+      "en": "Saved on this device · Waiting to sync ({count})",
+      "de": "Auf diesem Gerät gespeichert · Zur Synchronisierung ausstehend ({count})"
+    },
+    "checks": [
+      {
+        "name": "Edit scope",
+        "status": "pass",
+        "detail": "Only the report.sync.pending display key is in scope."
+      },
+      {
+        "name": "Translation contract",
+        "status": "pass",
+        "detail": "Both plain-text labels retain the exact {count} placeholder."
+      },
+      {
+        "name": "Independent review",
+        "status": "pass",
+        "detail": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state."
+      }
+    ],
+    "reviewer": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state.",
+    "sha256": "cf283e695e88f1f95ad91c83e0a80ba1c763ae2420e06995c0602df0a6919d48",
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
+    "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f",
+    "proposal_sha256": "4a99d15a5ccbc557f764c5833cb9ebf6de81bb4d1e6c48483eb44caa9093da7b"
+  },
+  {
+    "id": "blocked",
+    "title": "A translation loses the count",
+    "source": "Constructed regression fixture",
+    "request": "People read \"Pending\" and ask whether they need to enter the training report again.\nPlease make the pending status say the report is saved on this device and waiting\nto sync. Show the number waiting. The same change should appear in English and\nGerman. Leave the sent status and the upload behaviour as they are.",
+    "status": "blocked",
+    "reason": "de: preserve exactly one literal {count} placeholder",
+    "before": {
+      "en": "Pending ({count})",
+      "de": "Ausstehend ({count})"
+    },
+    "after": {
+      "en": "Saved on this device · waiting to sync ({count})",
+      "de": "Auf diesem Gerät gespeichert · Synchronisierung ausstehend"
+    },
+    "checks": [
+      {
+        "name": "Edit scope",
+        "status": "pass",
+        "detail": "Only the report.sync.pending display key is in scope."
+      },
+      {
+        "name": "Translation contract",
+        "status": "fail",
+        "detail": "de: preserve exactly one literal {count} placeholder"
+      },
+      {
+        "name": "Independent review",
+        "status": "skipped",
+        "detail": "Earlier checks must pass first."
+      }
+    ],
+    "reviewer": null,
+    "sha256": null,
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
+    "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f",
+    "proposal_sha256": "241f176423e7dbb8c92ae4015b435b2b1b5f958a3a6c9a6a610ba0457ba8ed28"
+  },
+  {
+    "id": "escalated",
+    "title": "Change when reports count as sent",
+    "source": "Constructed scope fixture",
+    "request": "When the training report has been saved on the device, immediately count it as sent, even before the server confirms upload.",
+    "status": "escalated",
+    "reason": "Counting a locally saved report as sent changes the sync state. An engineer must review the upload and confirmation behaviour.",
+    "before": {
+      "en": "Pending ({count})",
+      "de": "Ausstehend ({count})"
+    },
+    "after": null,
+    "checks": [
+      {
+        "name": "Edit scope",
+        "status": "fail",
+        "detail": "Behaviour changes require an engineer."
+      },
+      {
+        "name": "Translation contract",
+        "status": "skipped",
+        "detail": "Earlier checks must pass first."
+      },
+      {
+        "name": "Independent review",
+        "status": "skipped",
+        "detail": "Earlier checks must pass first."
+      }
+    ],
+    "reviewer": null,
+    "sha256": null,
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
+    "request_sha256": "14f9c70fc4fc4b5ac500bf1129dc223ad798ffe32eba8b99882e1d0a00cf83cd",
+    "proposal_sha256": "5b0d3ef8b134861c539f447003fe9fc335cee15818f26b1876508977489cf4f8"
+  }
+]

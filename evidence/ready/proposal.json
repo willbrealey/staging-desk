@@ -1,0 +1,7 @@
+{
+  "de": "Auf diesem Gerät gespeichert · Zur Synchronisierung ausstehend ({count})",
+  "decision": "propose",
+  "en": "Saved on this device · Waiting to sync ({count})",
+  "key": "report.sync.pending",
+  "reason": "The request only changes the pending label. Both versions confirm the report is saved locally and show how many reports are waiting to sync."
+}

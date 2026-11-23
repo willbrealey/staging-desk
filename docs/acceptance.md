@@ -8,4 +8,6 @@ The coding workflow uses separate Git worktrees for the interface and gate imple
 
 ## UI data contract
 
+Independent review added a regression requirement. Editing either original label must invalidate the old model verdict and any product-owner decision, even if the request and proposed wording are identical. The [delivery record](delivery.md) links the failing check and correction.
+
 The Python exporter owns web/public/cases.json. It generates an array. Each entry has id (ready, blocked or escalated), title, request, source, status (ready, blocked or escalated), reason, before and after (objects with en/de string templates, or null for after), checks (array of {name, status, detail} with status pass/fail/skipped), reviewer (string or null), sha256 (string or null). The preview substitutes a sample count of 3 for the literal {count}. Decisions belong to an individual proposal fingerprint. The UI worker can use a temporary fixture outside Git until export is available.

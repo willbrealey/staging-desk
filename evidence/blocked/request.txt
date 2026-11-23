@@ -1,0 +1,4 @@
+People read "Pending" and ask whether they need to enter the training report again.
+Please make the pending status say the report is saved on this device and waiting
+to sync. Show the number waiting. The same change should appear in English and
+German. Leave the sent status and the upload behaviour as they are.

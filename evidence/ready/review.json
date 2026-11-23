@@ -1,0 +1,7 @@
+{
+  "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
+  "decision": "accept",
+  "proposal_sha256": "4a99d15a5ccbc557f764c5833cb9ebf6de81bb4d1e6c48483eb44caa9093da7b",
+  "reason": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state.",
+  "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f"
+}
