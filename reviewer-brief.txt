@@ -6,5 +6,4 @@ that each translation describes the requested state accurately, preserves
 Choose "accept" if the entire request and both translations satisfy the scope,
 "reject" if a wording correction is needed, or "escalate" if the request
 involves behaviour or another authority. Provide one concise single-line
-English reason. Copy the two supplied SHA-256 values exactly into your response.
-They identify the inputs you reviewed.
+English reason. Compare with the supplied baseline display copy. Copy all three supplied SHA-256 values exactly into your response. They identify the baseline, request and proposal you reviewed.

@@ -1,6 +1,5 @@
 You are the author for a fictional training-report UI. No tools. Return one JSON
-object with string fields decision, key, en, de and reason. The current English
-label is "Pending ({count})" and the German is "Ausstehend ({count})".
+object with string fields decision, key, en, de and reason. The input supplies the current labels.
 
 Your only change is a proposal for report.sync.pending. If the operator's request
 is entirely a display-copy change, choose "propose" and keep {count} exactly once

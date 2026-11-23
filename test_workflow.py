@@ -2,7 +2,7 @@
 import json
 import sys
 from pathlib import Path
-from subprocess import run as cli
+from subprocess import TimeoutExpired, run as cli
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -22,7 +22,10 @@ PROPOSAL = {"decision": "propose", "key": "report.sync.pending", "en": "Saved lo
 
 def review(request=REQUEST, proposal=None, **changes):
     raw = encode(PROPOSAL) if proposal is None else proposal
+    baseline_bytes = json.dumps({"key": "report.sync.pending", "labels": BEFORE}, sort_keys=True,
+                                ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return encode({"decision": "accept", "reason": "Both labels describe a local save pending upload.",
+                   "baseline_sha256": digest(baseline_bytes),
                    "request_sha256": digest(request), "proposal_sha256": digest(raw), **changes})
 
 
@@ -148,6 +151,8 @@ class ReplayTests(unittest.TestCase):
                 calls.append(decisions)
                 if decisions[0] == "propose":
                     return encode(PROPOSAL)
+                self.assertIn(BEFORE["en"], prompt)
+                self.assertIn(BEFORE["de"], prompt)
                 self.assertIn(digest(REQUEST), prompt)
                 self.assertIn(digest(encode(PROPOSAL)), prompt)
                 self.assertNotIn(PROPOSAL["reason"], prompt)
@@ -159,6 +164,25 @@ class ReplayTests(unittest.TestCase):
             self.assertEqual(outcome, json.loads((out / "receipt.json").read_text()))
             with self.assertRaises(FileExistsError):
                 run(request, out, invoke)
+
+    def test_reviewer_timeout_persists_bounded_failure_receipt(self):
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            request = folder / "request.txt"
+            request.write_bytes(REQUEST)
+            def invoke(prompt, fields, choices):
+                if choices[0] == "propose":
+                    return encode(PROPOSAL)
+                raise TimeoutExpired("codex", 120, stderr=b"private diagnostics")
+            out = folder / "timeout"
+            with self.assertRaises(TimeoutExpired):
+                run(request, out, invoke)
+            receipt = json.loads((out / "receipt.json").read_text())
+            self.assertEqual(receipt["status"], "blocked")
+            self.assertEqual(receipt["stage"], "reviewer")
+            self.assertEqual(receipt["error_type"], "TimeoutExpired")
+            self.assertNotIn("private diagnostics", json.dumps(receipt))
+            self.assertEqual(replay(out)["status"], "blocked")
 
     def test_author_scope_violation_short_circuits_second_call(self):
         with TemporaryDirectory() as tmp:
