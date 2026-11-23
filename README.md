@@ -2,7 +2,11 @@
 
 **Can a product owner improve what a screen says without accidentally changing what the software does?** Staging Desk makes that boundary visible. Try a bilingual copy request, inspect an independent agent’s review, then see how a failed check or a change to sync behaviour takes a different route.
 
-**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [See CI runs](https://github.com/willbrealey/staging-desk/actions/workflows/verify.yml) · [Inspect the real author and reviewer outputs](evidence/ready/)
+**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [Inspect the implementation PR](https://github.com/willbrealey/staging-desk/pull/1) · [Read the two model outputs](evidence/ready/)
+
+Fourteen Python tests passed on the first implementation. An independent reviewer then changed the original German wording and found that the old approval still counted. The [failing CI run](https://github.com/willbrealey/staging-desk/actions/runs/45188585686) and [fix](https://github.com/willbrealey/staging-desk/commit/86df24036674d3bb3691fdb0e5864bc750290cdf) show the mistake and how to reproduce it.
+
+[![Review desk showing a bilingual proposal, original request and staging decision](docs/review-desk.png)](https://willbrealey.github.io/staging-desk/)
 
 ## Try the three requests
 
@@ -17,7 +21,7 @@ The **product owner** reviews language and decides if a proposal is ready for st
 ## What to inspect as an engineer
 
 1. **Agent orchestration.** [The acceptance brief](docs/acceptance.md) defines a shared interface for the Vue and Python work. Agents implemented those parts in isolated Git worktrees, then an independent reviewer examined the integrated change. Inside the running workflow, a read-only author proposes copy. A fresh reviewer sees the original request and candidate without the author’s rationale. Each role has one model call and a 120-second timeout. [Runner](run_agent.py) · [Agent delivery record](docs/delivery.md)
-2. **Tests that can disagree with a model.** The Python gate checks the editable key, supported locales, placeholder contract and reviewer verdict. It binds each acceptance to the exact request, proposal and review. CI independently replays the examples, rebuilds the Vue app and exercises the product-owner decisions in Chromium. The CI replay needs no model credentials. [Python tests](test_workflow.py) · [Browser tests](web/tests/) · [CI definition](.github/workflows/verify.yml)
+2. **Tests that can disagree with a model.** The Python gate checks the editable key, supported locales, placeholder contract and reviewer verdict. Each acceptance belongs to one request, one pair of original labels, one proposal and one review. CI independently replays the examples, rebuilds the Vue app and exercises the product-owner decisions in Chromium. The CI replay needs no model credentials. [Python tests](test_workflow.py) · [Browser tests](web/tests/) · [CI definition](.github/workflows/verify.yml)
 3. **A controlled handoff to staging.** The author supplies data for one display key. A missing or stale review blocks the proposal. A verified case still needs a human decision. Only the Pages deployment job receives publishing permissions, and it runs after verification on the default branch. [Decision code](workflow.py) · [Recorded cases](evidence/)
 
 ## Run locally
@@ -47,6 +51,6 @@ The CLI writes the request, structured model outputs and gate receipt to disk. R
 
 ## Boundaries and trade-offs
 
-The accepted sample used two Codex sessions. The CLI reported 17,963 tokens for the author and 18,144 for the reviewer. These are observed token counts, without a billing estimate. For routine wording, the cost of an independent model review is worth measuring against the corrections it catches. Structural checks alone cannot decide whether a German translation communicates the intended meaning.
+The accepted sample used two Codex sessions. The CLI reported 17,997 tokens for the author and 18,300 for the reviewer. These are observed token counts, without a billing estimate. The German placeholder check makes a second call unnecessary when the proposal loses the count. A fresh reviewer still has to judge whether wording that passes those checks communicates the intended meaning.
 
 The demo stores decisions locally and uses synthetic training reports. Hashes tie decisions to recorded bytes. They do not authenticate an individual reviewer. A production service would need authenticated users, tenant isolation, durable approvals and a release policy. This independent work sample was inspired by the product-owner/staging workflow in [IMPedia’s engineering role](https://swissdevjobs.ch/jobs/Institute-of-Medical-Procedures-Software-Engineer-Agentic-AI).
