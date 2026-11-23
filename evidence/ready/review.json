@@ -1,0 +1,6 @@
+{
+  "decision": "accept",
+  "proposal_sha256": "36cfa30f78af51f6560149e06d9e2ba2e0a330ff8cea7999c56f77728c2b363a",
+  "reason": "The change is limited to report.sync.pending, and both labels accurately convey local saving and pending sync, include {count} once each, and add no delivery or behaviour claims.",
+  "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f"
+}

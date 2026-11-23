@@ -1,108 +1,167 @@
-"""A single UI-copy proposal, checked independently before a local staging preview."""
+"""Replay the review of a bounded UI copy change using Python's standard library."""
 import argparse
-from hashlib import sha256
-from html import escape
 import json
-from pathlib import Path
-from tempfile import TemporaryDirectory
 import sys
+from hashlib import sha256
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 KEY = "report.sync.pending"
-STATES = {
-    "pending": {"en": "Pending ({count})", "de": "Ausstehend ({count})"},
-    "sent": {"en": "Sent", "de": "Gesendet"},
-}
-FIELDS = {"decision", "key", "en", "de", "reason"}
-LANGUAGES = {"en": "English", "de": "Deutsch"}
+BEFORE = {"en": "Pending ({count})", "de": "Ausstehend ({count})"}
+AUTHOR_FIELDS = {"decision", "key", "en", "de", "reason"}
+REVIEW_FIELDS = {"decision", "request_sha256", "proposal_sha256", "reason"}
+PUBLIC_CASES = ROOT / "web/public/cases.json"
+CASES = [
+    ("ready", "Clarify the pending status", "Recorded live Codex author and reviewer"),
+    ("blocked", "A translation loses the count", "Constructed regression fixture"),
+    ("escalated", "Change when reports count as sent", "Constructed scope fixture"),
+]
+
+
+def digest(raw):
+    return sha256(raw).hexdigest()
+
+
+def bytes_from(path):
+    with path.open("rb") as stream:
+        data = stream.read(8193)
+    if len(data) > 8192:
+        raise ValueError(f"{path.name} exceeds the 8 KiB input limit")
+    return data
 
 
 def unique_fields(pairs):
     result = {}
     for key, value in pairs:
         if key in result:
-            raise ValueError(f"duplicate proposal field: {key}")
+            raise ValueError(f"duplicate field: {key}")
         result[key] = value
     return result
 
 
-def validate(proposal):
-    if not isinstance(proposal, dict) or set(proposal) != FIELDS:
-        raise ValueError("expected only decision, key, en, de and reason")
-    if not all(isinstance(v, str) for v in proposal.values()):
-        raise ValueError("all proposal values must be text")
+def read_object(raw, fields):
+    value = json.loads(raw.decode("utf-8"), object_pairs_hook=unique_fields)
+    if not isinstance(value, dict) or set(value) != fields:
+        raise ValueError("required fields: " + ", ".join(sorted(fields)))
+    if not all(isinstance(v, str) for v in value.values()):
+        raise ValueError("every proposal and review field must be a string")
+    if not value["reason"].strip() or not value["reason"].isprintable() or len(value["reason"]) > 600:
+        raise ValueError("provide a short, single-line reason")
+    return value
+
+
+def request_text(raw):
+    text = raw.decode("utf-8").strip()
+    if not text:
+        raise ValueError("the product-owner request is empty")
+    return text
+
+
+def scope(proposal):
     if proposal["decision"] == "escalate":
-        raise ValueError("engineer review requested: " + proposal["reason"][:300])
+        if proposal["en"] or proposal["de"]:
+            raise ValueError("escalations must leave both proposed labels empty")
+        return "escalated"
     if proposal["decision"] != "propose" or proposal["key"] != KEY:
-        raise ValueError(f"only a copy proposal for {KEY} can reach staging")
-    if not proposal["reason"].strip() or len(proposal["reason"]) > 500:
-        raise ValueError("provide a short explanation for the reviewer")
+        raise ValueError(f"only {KEY} may be changed")
+    return "proposed"
 
-    for lang in LANGUAGES:
-        value = proposal[lang]
+
+def verify_labels(labels):
+    for lang, value in labels.items():
         if not value.strip() or len(value) > 140 or not value.isprintable() or "<" in value or ">" in value:
-            raise ValueError(f"{lang}: expected a single plain-text label of at most 140 characters")
-        remainder = value.replace("{count}", "")
-        if value.count("{count}") != 1 or "{" in remainder or "}" in remainder:
+            raise ValueError(f"{lang}: expected one plain-text label of 1–140 characters")
+        other = value.replace("{count}", "")
+        if value.count("{count}") != 1 or "{" in other or "}" in other:
             raise ValueError(f"{lang}: preserve exactly one literal {{count}} placeholder")
-    return {lang: proposal[lang] for lang in LANGUAGES}
 
 
-def render(labels, digest):
-    panels = []
-    for lang, title in LANGUAGES.items():
-        before = escape(STATES["pending"][lang].format(count=3))
-        after = escape(labels[lang].format(count=3))
-        sent = escape(STATES["sent"][lang])
-        rows = "".join(
-            f'<div class="variant"><dt>{heading}</dt><dd lang="{lang}">{value}</dd></div>'
-            for heading, value in [("Before", before), ("Proposed", after), ("Sent status", sent)]
-        )
-        panels.append(f'<section><h2>{title}</h2><dl>{rows}</dl></section>')
-    return (ROOT / "preview.html").read_text(encoding="utf-8").replace("{{PANELS}}", "".join(panels)).replace("{{DIGEST}}", digest)
+def assess(request_raw, proposal_raw, review_raw=None):
+    """The only route to a ready decision. Hashes bind reviewed bytes, not model identity."""
+    request = request_text(request_raw)
+    hashes = {"request_sha256": digest(request_raw), "proposal_sha256": digest(proposal_raw)}
+    checks = [
+        {"name": name, "status": "skipped", "detail": "Earlier checks must pass first."}
+        for name in ("Edit scope", "Translation contract", "Independent review")
+    ]
+    result = {"request": request, "status": "blocked", "reason": "", "before": BEFORE.copy(),
+              "after": None, "checks": checks, "reviewer": None, "sha256": None, **hashes}
+    index = 0
+    try:
+        author = read_object(proposal_raw, AUTHOR_FIELDS)
+        if scope(author) == "escalated":
+            result.update(status="escalated", reason=author["reason"])
+            checks[0].update(status="fail", detail="Behaviour changes require an engineer.")
+            return result
+        checks[0].update(status="pass", detail=f"Only the {KEY} display key is in scope.")
+        index = 1
+        result["after"] = {lang: author[lang] for lang in BEFORE}
+        verify_labels(result["after"])
+        checks[1].update(status="pass", detail="Both plain-text labels retain the exact {count} placeholder.")
+        index = 2
+        if review_raw is None:
+            raise ValueError("an independent review of these exact inputs is required")
+        review = read_object(review_raw, REVIEW_FIELDS)
+        if any(review[field] != value for field, value in hashes.items()):
+            raise ValueError("the review refers to another request or proposal")
+        result["reviewer"] = review["reason"]
+        if review["decision"] in {"reject", "escalate"}:
+            if review["decision"] == "escalate":
+                result["status"] = "escalated"
+            raise ValueError(review["reason"])
+        if review["decision"] != "accept":
+            raise ValueError("unknown reviewer verdict")
+        checks[2].update(status="pass", detail=review["reason"])
+        # Include the review as well as both inputs in the browser's decision key.
+        reviewed = ":".join([hashes["request_sha256"], hashes["proposal_sha256"], digest(review_raw)])
+        result.update(status="ready", reason="Verified for product-owner review.", sha256=digest(reviewed.encode("ascii")))
+    except (ValueError, RecursionError) as exc:
+        result["reason"] = str(exc)
+        checks[index].update(status="fail", detail=str(exc))
+    return result
+
+
+def replay(directory):
+    review = directory / "review.json"
+    return assess(bytes_from(directory / "request.txt"), bytes_from(directory / "proposal.json"),
+                  bytes_from(review) if review.is_file() else None)
+
+
+def catalog():
+    rows = []
+    for kind, title, source in CASES:
+        data = replay(ROOT / "evidence" / kind)
+        if data["status"] != kind:
+            raise ValueError(f"{kind} fixture produced {data['status']}: {data['reason']}")
+        rows.append({"id": kind, "title": title, "source": source, **data})
+    return json.dumps(rows, ensure_ascii=False, indent=2) + "\n"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
-    prompt = sub.add_parser("brief", help="Write the context for a single coding agent to stdout")
-    prompt.add_argument("request", type=Path)
-    check = sub.add_parser("preview", help="Check agent JSON and write a new, local preview directory")
-    check.add_argument("proposal", type=Path)
-    check.add_argument("output", type=Path)
+    replay_cmd = sub.add_parser("replay", help="Read request.txt, proposal.json and optional review.json")
+    replay_cmd.add_argument("directory", type=Path)
+    export = sub.add_parser("export", help="Generate the public UI from the recorded cases")
+    export.add_argument("--check", action="store_true", help="Fail when the public catalog is stale")
     args = parser.parse_args()
-    if args.command == "brief":
-        directions = (ROOT / "agent-brief.txt").read_text(encoding="utf-8")
-        print(directions, "\nCurrent labels:", json.dumps(STATES, ensure_ascii=False),
-              "\nProduct-owner request:\n", args.request.read_text(encoding="utf-8"))
-        return 0
-
     try:
-        with args.proposal.open("rb") as stream:
-            raw = stream.read(8193)
-        if len(raw) > 8192:
-            raise ValueError("proposal exceeds 8 KiB")
-        proposal = json.loads(raw, object_pairs_hook=unique_fields)
-        labels = validate(proposal)
-        fingerprint = sha256(raw).hexdigest()
-        page = render(labels, fingerprint[:12])
-        receipt = {"proposal_sha256": fingerprint, "allowed_key": KEY, "locales": list(labels),
-                   "status": "awaiting_product_owner_review", "model_explanation": proposal["reason"]}
-        # Never overwrite a previous preview. Each reviewed proposal keeps its receipt.
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        if args.output.exists() or args.output.is_symlink():
-            raise ValueError("use a new output directory for each preview")
-        with TemporaryDirectory(dir=args.output.parent) as temp:
-            stage = Path(temp) / "preview"
-            stage.mkdir()
-            (stage / "index.html").write_text(page, encoding="utf-8")
-            (stage / "receipt.json").write_text(json.dumps(receipt, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-            stage.rename(args.output)
-    except (OSError, ValueError) as exc:
-        print(f"Preview not created: {exc}", file=sys.stderr)
+        if args.command == "replay":
+            result = replay(args.directory)
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0 if result["status"] == "ready" else 1
+        data = catalog()
+        if args.check:
+            if PUBLIC_CASES.read_text(encoding="utf-8") != data:
+                raise ValueError("stale case catalog: run python3 workflow.py export")
+        else:
+            PUBLIC_CASES.parent.mkdir(parents=True, exist_ok=True)
+            PUBLIC_CASES.write_text(data, encoding="utf-8")
+        print("Verified three review cases.")
+        return 0
+    except (ValueError, OSError, RecursionError) as exc:
+        print(f"Review stopped: {exc}", file=sys.stderr)
         return 1
-    print(f"Ready for product-owner review: {args.output / 'index.html'}")
-    return 0
 
 
 if __name__ == "__main__":

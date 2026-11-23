@@ -1,0 +1,1 @@
+When the training report has been saved on the device, immediately count it as sent, even before the server confirms upload.
