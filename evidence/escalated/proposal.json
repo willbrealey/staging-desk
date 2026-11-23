@@ -1,0 +1,7 @@
+{
+  "decision": "escalate",
+  "key": "report.sync.pending",
+  "en": "",
+  "de": "",
+  "reason": "Counting a locally saved report as sent changes the sync state. An engineer must review the upload and confirmation behaviour."
+}
