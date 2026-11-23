@@ -153,17 +153,53 @@ class ReplayTests(unittest.TestCase):
                     return encode(PROPOSAL)
                 self.assertIn(BEFORE["en"], prompt)
                 self.assertIn(BEFORE["de"], prompt)
-                self.assertIn(digest(REQUEST), prompt)
-                self.assertIn(digest(encode(PROPOSAL)), prompt)
+                self.assertEqual(fields, {"decision", "reason"})
+                inputs = json.loads(prompt.split("\nInputs:\n")[1])
+                self.assertEqual(set(inputs), {"baseline", "request", "candidate"})
+                self.assertEqual(inputs["request"], REQUEST.decode())
                 self.assertNotIn(PROPOSAL["reason"], prompt)
-                return review()
+                return encode({"decision": "accept", "reason": "Both labels describe the requested state."})
             outcome = run(request, out, invoke)
             self.assertEqual(calls, [["propose", "escalate"], ["accept", "reject", "escalate"]])
             self.assertEqual(outcome["status"], "ready")
             self.assertEqual(outcome, replay(out))
             self.assertEqual(outcome, json.loads((out / "receipt.json").read_text()))
+            verdict = json.loads((out / "review-verdict.json").read_text())
+            self.assertEqual(set(verdict), {"decision", "reason"})
+            bound = json.loads((out / "review.json").read_text())
+            self.assertEqual(bound["request_sha256"], digest(REQUEST))
+            self.assertEqual(bound["proposal_sha256"], digest(encode(PROPOSAL)))
             with self.assertRaises(FileExistsError):
                 run(request, out, invoke)
+
+    def test_reviewer_cannot_supply_its_own_input_hashes(self):
+        with TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            request = folder / "request.txt"
+            request.write_bytes(REQUEST)
+            def invoke(prompt, fields, choices):
+                return encode(PROPOSAL) if choices[0] == "propose" else review()
+            out = folder / "run"
+            with self.assertRaisesRegex(ValueError, "required fields"):
+                run(request, out, invoke)
+            self.assertFalse((out / "review.json").exists())
+            self.assertEqual(json.loads((out / "receipt.json").read_text())["status"], "blocked")
+
+    def test_baseline_changed_during_review_invalidates_harness_bound_verdict(self):
+        with TemporaryDirectory() as tmp, patch.dict(BEFORE):
+            folder = Path(tmp)
+            request = folder / "request.txt"
+            request.write_bytes(REQUEST)
+            def invoke(prompt, fields, choices):
+                if choices[0] == "propose":
+                    return encode(PROPOSAL)
+                BEFORE["de"] = "Geändert ({count})"
+                return encode({"decision": "accept", "reason": "The original wording passed."})
+            out = folder / "run"
+            result = run(request, out, invoke)
+            self.assertEqual(result["status"], "blocked")
+            self.assertIn("another baseline", result["reason"])
+            self.assertIsNone(result["sha256"])
 
     def test_reviewer_timeout_persists_bounded_failure_receipt(self):
         with TemporaryDirectory() as tmp:
