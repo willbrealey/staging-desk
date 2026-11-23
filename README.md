@@ -1,10 +1,10 @@
 # Staging Desk
 
-**Can a product owner improve what a screen says without accidentally changing what the software does?** Staging Desk makes that boundary visible. Try a bilingual copy request, inspect an independent agent’s review, then see how a failed check or a change to sync behaviour takes a different route.
+Staging Desk is an afternoon work sample built for an IMPedia engineering application.
 
-**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [Run the secure approval service](docs/security.md) · [Inspect the implementation PR](https://github.com/willbrealey/staging-desk/pull/1) · [Read the two model outputs](evidence/ready/)
+The repo shows a FastAPI service with PostgreSQL row-level security, an audit trail, bounded agent calls and CI.
 
-Fourteen Python tests passed on the first implementation. An independent reviewer then changed the original German wording and found that the old approval still counted. The [failing CI run](https://github.com/willbrealey/staging-desk/actions/runs/45188585686) and [fix](https://github.com/willbrealey/staging-desk/commit/86df24036674d3bb3691fdb0e5864bc750290cdf) show the mistake and how to reproduce it.
+**[Open the live review desk](https://willbrealey.github.io/staging-desk/)** · [Run the secure approval service](docs/security.md) · [UI workflow · PR #1](https://github.com/willbrealey/staging-desk/pull/1) · [Security service · PR #2](https://github.com/willbrealey/staging-desk/pull/2) · [Read the two model outputs](evidence/ready/)
 
 [![Review desk showing a bilingual proposal, original request and staging decision](docs/review-desk.png)](https://willbrealey.github.io/staging-desk/)
 
@@ -20,6 +20,8 @@ The **product owner** reviews language and decides if a proposal is ready for st
 
 ## What to inspect as an engineer
 
+Fourteen Python tests passed on the first implementation. An independent reviewer then changed the original German wording and found that the old approval still counted. The [failing CI run](https://github.com/willbrealey/staging-desk/actions/runs/45188585686) and [fix](https://github.com/willbrealey/staging-desk/commit/86df24036674d3bb3691fdb0e5864bc750290cdf) show the mistake and how to reproduce it.
+
 The [FastAPI/PostgreSQL service](docs/security.md) stores decisions and their audit events durably. Expiring bearer credentials resolve to a tenant and actor on the server. PostgreSQL enforces tenant separation even when a query has no tenant filter. CI uses a real PostgreSQL server for cross-tenant reads and writes, forged identities, expired credentials, concurrent retries and audit failure.
 
 [AGENTS.md](AGENTS.md) gives coding agents the context and verification commands. Enable the [push hook](.githooks/pre-push) with `git config core.hooksPath .githooks`. A separate [Responses runner](bounded_agent.py) enforces token and configured USD ceilings before generation. The original recorded Codex sessions remain available for replay.
@@ -30,7 +32,7 @@ The [FastAPI/PostgreSQL service](docs/security.md) stores decisions and their au
 
 ## Run locally
 
-Requires Python 3.9+ and Node 22.23+. From the repository root:
+The core workflow requires Python 3.9+. The FastAPI/PostgreSQL service requires Python 3.11+. The web interface requires Node 22.23+. From the repository root:
 
 ```sh
 python3 -m unittest -v
@@ -51,7 +53,7 @@ python3 run_agent.py examples/request.txt .preview-my-run
 python3 workflow.py replay .preview-my-run
 ```
 
-The CLI writes the request, structured model outputs and gate receipt to disk. Read the JSON directly or replay it. The public catalog is built only from the curated cases in `evidence/`. Files in a fresh run stay local.
+The CLI writes the request, structured model outputs and check results to disk. Read the JSON directly or replay it. The public catalog is built only from the curated cases in `evidence/`. Files in a fresh run stay local.
 
 ## Boundaries and trade-offs
 

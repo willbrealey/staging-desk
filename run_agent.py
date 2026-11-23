@@ -6,7 +6,9 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
-from workflow import AUTHOR_FIELDS, REVIEW_FIELDS, ROOT, assess, baseline, baseline_digest, bytes_from, digest, request_text
+from workflow import AUTHOR_FIELDS, ROOT, assess, baseline, baseline_digest, bytes_from, digest, read_object, request_text
+
+VERDICT_FIELDS = {"decision", "reason"}
 
 
 def call_agent(prompt, fields, decisions):
@@ -45,11 +47,15 @@ def run(request_path, out, invoke=call_agent):
             stage = "reviewer"
             payload = json.loads(proposal)
             candidate = {k: payload[k] for k in ("key", "en", "de")}
-            inputs = {**message, "candidate": candidate, "baseline_sha256": context_hash,
-                      "request_sha256": digest(request), "proposal_sha256": digest(proposal)}
+            inputs = {**message, "candidate": candidate}
+            reviewed_inputs = {"baseline_sha256": context_hash, "request_sha256": digest(request),
+                               "proposal_sha256": digest(proposal)}
             directions = (ROOT / "reviewer-brief.txt").read_text(encoding="utf-8")
-            review = invoke(directions + "\nInputs:\n" + json.dumps(inputs, ensure_ascii=False),
-                            REVIEW_FIELDS, ["accept", "reject", "escalate"])
+            verdict = invoke(directions + "\nInputs:\n" + json.dumps(inputs, ensure_ascii=False),
+                             VERDICT_FIELDS, ["accept", "reject", "escalate"])
+            (out / "review-verdict.json").write_bytes(verdict)
+            decision = read_object(verdict, VERDICT_FIELDS)
+            review = json.dumps({**decision, **reviewed_inputs}, ensure_ascii=False, indent=2).encode("utf-8")
             (out / "review.json").write_bytes(review)
             result = assess(request, proposal, review)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
