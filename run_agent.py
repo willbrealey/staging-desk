@@ -6,7 +6,7 @@ import subprocess
 import sys
 from tempfile import TemporaryDirectory
 
-from workflow import AUTHOR_FIELDS, REVIEW_FIELDS, ROOT, assess, bytes_from, digest, request_text
+from workflow import AUTHOR_FIELDS, REVIEW_FIELDS, ROOT, assess, baseline, baseline_digest, bytes_from, digest, request_text
 
 
 def call_agent(prompt, fields, decisions):
@@ -31,20 +31,32 @@ def run(request_path, out, invoke=call_agent):
     out.mkdir(parents=True, exist_ok=False)
     (out / "request.txt").write_bytes(request)
     prompt = (ROOT / "agent-brief.txt").read_text(encoding="utf-8")
-    proposal = invoke(prompt + "\nRequest:\n" + request_string, AUTHOR_FIELDS, ["propose", "escalate"])
-    (out / "proposal.json").write_bytes(proposal)
-    result = assess(request, proposal)
-    if all(check["status"] == "pass" for check in result["checks"][:2]):
-        # The reviewer sees the proposed text, but not the author's rationale.
-        payload = json.loads(proposal)
-        candidate = {k: payload[k] for k in ("key", "en", "de")}
-        inputs = {"request": request_string, "candidate": candidate, "request_sha256": digest(request),
-                  "proposal_sha256": digest(proposal)}
-        instructions = (ROOT / "reviewer-brief.txt").read_text(encoding="utf-8")
-        review = invoke(instructions + "\nInputs:\n" + json.dumps(inputs, ensure_ascii=False),
-                        REVIEW_FIELDS, ["accept", "reject", "escalate"])
-        (out / "review.json").write_bytes(review)
-        result = assess(request, proposal, review)
+    stage = "author"
+    original = baseline()
+    context_hash = baseline_digest()
+    try:
+        message = {"baseline": original, "request": request_string}
+        proposal = invoke(prompt + "\nInputs:\n" + json.dumps(message, ensure_ascii=False),
+                          AUTHOR_FIELDS, ["propose", "escalate"])
+        (out / "proposal.json").write_bytes(proposal)
+        result = assess(request, proposal)
+        if all(check["status"] == "pass" for check in result["checks"][:2]):
+            # The reviewer sees the proposed text, but not the author's rationale.
+            stage = "reviewer"
+            payload = json.loads(proposal)
+            candidate = {k: payload[k] for k in ("key", "en", "de")}
+            inputs = {**message, "candidate": candidate, "baseline_sha256": context_hash,
+                      "request_sha256": digest(request), "proposal_sha256": digest(proposal)}
+            directions = (ROOT / "reviewer-brief.txt").read_text(encoding="utf-8")
+            review = invoke(directions + "\nInputs:\n" + json.dumps(inputs, ensure_ascii=False),
+                            REVIEW_FIELDS, ["accept", "reject", "escalate"])
+            (out / "review.json").write_bytes(review)
+            result = assess(request, proposal, review)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        failure = {"status": "blocked", "stage": stage, "error_type": type(exc).__name__,
+                   "baseline_sha256": context_hash, "request_sha256": digest(request)}
+        (out / "receipt.json").write_text(json.dumps(failure, indent=2) + "\n", encoding="utf-8")
+        raise
     (out / "receipt.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
 

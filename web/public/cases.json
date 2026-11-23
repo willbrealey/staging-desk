@@ -11,8 +11,8 @@
       "de": "Ausstehend ({count})"
     },
     "after": {
-      "en": "Saved on this device, waiting to sync ({count})",
-      "de": "Auf diesem Gerät gespeichert, wartet auf Synchronisierung ({count})"
+      "en": "Saved on this device · Waiting to sync ({count})",
+      "de": "Auf diesem Gerät gespeichert · Zur Synchronisierung ausstehend ({count})"
     },
     "checks": [
       {
@@ -28,13 +28,14 @@
       {
         "name": "Independent review",
         "status": "pass",
-        "detail": "The change is limited to report.sync.pending, and both labels accurately convey local saving and pending sync, include {count} once each, and add no delivery or behaviour claims."
+        "detail": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state."
       }
     ],
-    "reviewer": "The change is limited to report.sync.pending, and both labels accurately convey local saving and pending sync, include {count} once each, and add no delivery or behaviour claims.",
-    "sha256": "b15e2c0ceac12fa3fe4ed9b8a92aefd1da02366939c697c1c924f44ed3c1397f",
+    "reviewer": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state.",
+    "sha256": "cf283e695e88f1f95ad91c83e0a80ba1c763ae2420e06995c0602df0a6919d48",
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
     "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f",
-    "proposal_sha256": "36cfa30f78af51f6560149e06d9e2ba2e0a330ff8cea7999c56f77728c2b363a"
+    "proposal_sha256": "4a99d15a5ccbc557f764c5833cb9ebf6de81bb4d1e6c48483eb44caa9093da7b"
   },
   {
     "id": "blocked",
@@ -70,6 +71,7 @@
     ],
     "reviewer": null,
     "sha256": null,
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
     "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f",
     "proposal_sha256": "241f176423e7dbb8c92ae4015b435b2b1b5f958a3a6c9a6a610ba0457ba8ed28"
   },
@@ -104,6 +106,7 @@
     ],
     "reviewer": null,
     "sha256": null,
+    "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
     "request_sha256": "14f9c70fc4fc4b5ac500bf1129dc223ad798ffe32eba8b99882e1d0a00cf83cd",
     "proposal_sha256": "5b0d3ef8b134861c539f447003fe9fc335cee15818f26b1876508977489cf4f8"
   }

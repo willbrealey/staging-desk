@@ -1,6 +1,7 @@
 {
+  "baseline_sha256": "3ddfdf46a8c0092c20c4000ba0d363b5756589de7daac56bd995740a12b7aa75",
   "decision": "accept",
-  "proposal_sha256": "36cfa30f78af51f6560149e06d9e2ba2e0a330ff8cea7999c56f77728c2b363a",
-  "reason": "The change is limited to report.sync.pending, and both labels accurately convey local saving and pending sync, include {count} once each, and add no delivery or behaviour claims.",
+  "proposal_sha256": "4a99d15a5ccbc557f764c5833cb9ebf6de81bb4d1e6c48483eb44caa9093da7b",
+  "reason": "Both labels clarify the baseline’s generic pending status by confirming the report is saved on this device and awaiting sync, each using {count} once and adding no delivery or behaviour claims beyond the requested state.",
   "request_sha256": "b65da08ada87979e3ab0cf3b90c2d295e0257ce1d46f3b790456ec78e053fb9f"
 }

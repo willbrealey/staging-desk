@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parent
 KEY = "report.sync.pending"
 BEFORE = {"en": "Pending ({count})", "de": "Ausstehend ({count})"}
 AUTHOR_FIELDS = {"decision", "key", "en", "de", "reason"}
-REVIEW_FIELDS = {"decision", "request_sha256", "proposal_sha256", "reason"}
+REVIEW_FIELDS = {"decision", "baseline_sha256", "request_sha256", "proposal_sha256", "reason"}
 PUBLIC_CASES = ROOT / "web/public/cases.json"
 CASES = [
     ("ready", "Clarify the pending status", "Recorded live Codex author and reviewer"),
@@ -20,6 +20,15 @@ CASES = [
 
 def digest(raw):
     return sha256(raw).hexdigest()
+
+
+def baseline():
+    return {"key": KEY, "labels": BEFORE.copy()}
+
+
+def baseline_digest():
+    encoded = json.dumps(baseline(), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return digest(encoded.encode("utf-8"))
 
 
 def bytes_from(path):
@@ -79,7 +88,8 @@ def verify_labels(labels):
 def assess(request_raw, proposal_raw, review_raw=None):
     """The only route to a ready decision. Hashes bind reviewed bytes, not model identity."""
     request = request_text(request_raw)
-    hashes = {"request_sha256": digest(request_raw), "proposal_sha256": digest(proposal_raw)}
+    hashes = {"baseline_sha256": baseline_digest(), "request_sha256": digest(request_raw),
+              "proposal_sha256": digest(proposal_raw)}
     checks = [
         {"name": name, "status": "skipped", "detail": "Earlier checks must pass first."}
         for name in ("Edit scope", "Translation contract", "Independent review")
@@ -103,7 +113,7 @@ def assess(request_raw, proposal_raw, review_raw=None):
             raise ValueError("an independent review of these exact inputs is required")
         review = read_object(review_raw, REVIEW_FIELDS)
         if any(review[field] != value for field, value in hashes.items()):
-            raise ValueError("the review refers to another request or proposal")
+            raise ValueError("the review refers to another baseline, request or proposal")
         result["reviewer"] = review["reason"]
         if review["decision"] in {"reject", "escalate"}:
             if review["decision"] == "escalate":
@@ -112,8 +122,9 @@ def assess(request_raw, proposal_raw, review_raw=None):
         if review["decision"] != "accept":
             raise ValueError("unknown reviewer verdict")
         checks[2].update(status="pass", detail=review["reason"])
-        # Include the review as well as both inputs in the browser's decision key.
-        reviewed = ":".join([hashes["request_sha256"], hashes["proposal_sha256"], digest(review_raw)])
+        # Tie the human decision to the displayed baseline and the reviewed change.
+        reviewed = ":".join([hashes["baseline_sha256"], hashes["request_sha256"],
+                             hashes["proposal_sha256"], digest(review_raw)])
         result.update(status="ready", reason="Verified for product-owner review.", sha256=digest(reviewed.encode("ascii")))
     except (ValueError, RecursionError) as exc:
         result["reason"] = str(exc)
