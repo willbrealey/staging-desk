@@ -14,6 +14,20 @@ jobs:
     name: Replay gates and test the review desk
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: disposable-ci-password
+          POSTGRES_DB: staging_tests
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d staging_tests"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -22,6 +36,15 @@ jobs:
         run: python3 -m unittest -v
       - name: Verify published cases match their evidence
         run: python3 workflow.py export --check
+      - name: Install approval service test dependencies
+        run: |
+          python3 -m venv /tmp/staging-service
+          /tmp/staging-service/bin/pip install -r service/requirements.txt
+      - name: Prove tenant isolation, authentication and atomic auditing on PostgreSQL
+        env:
+          TEST_ADMIN_DATABASE_URL: postgresql://postgres:disposable-ci-password@localhost:5432/staging_tests
+          DATABASE_URL: postgresql://desk_runtime:disposable-runtime-password@localhost:5432/staging_tests
+        run: /tmp/staging-service/bin/python -m pytest tests/test_service.py -v
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22.23.2
